@@ -3,15 +3,23 @@
  <tileset firstgid="1" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/extra.tsx"/>
  <tileset firstgid="67" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/outside.tsx"/>
  <tileset firstgid="115" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/objects.tsx"/>
+ <tileset firstgid="143" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/editor_paths.tsx"/>
+ <tileset firstgid="149" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/enemies.tsx"/>
+ <tileset firstgid="149" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/grass.tsx"/>
+ <tileset firstgid="154" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/inside.tsx"/>
+ <tileset firstgid="250" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/items.tsx"/>
+ <tileset firstgid="255" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/map objects.tsx"/>
+ <tileset firstgid="262" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/overworld.tsx"/>
+ <tileset firstgid="388" source="../../../SuperPirate/Super-Pirate-World/data/tilesets/platforms.tsx"/>
  <layer id="1" name="Terrain" width="40" height="15">
   <data encoding="csv">
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+81,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+81,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+81,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+81,0,0,0,0,0,0,0,0,103,104,105,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+81,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,103,104,105,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+81,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+93,0,0,0,103,104,105,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,103,104,105,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,103,104,105,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,67,68,68,69,0,0,0,0,0,0,0,0,0,78,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
