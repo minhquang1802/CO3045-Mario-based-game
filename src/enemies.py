@@ -33,6 +33,7 @@
 from settings import * 
 from random import choice
 from timer import Timer
+from math import sin
 
 class Tooth(pygame.sprite.Sprite):
 	def __init__(self, pos, frames, groups, collision_sprites):
@@ -52,6 +53,9 @@ class Tooth(pygame.sprite.Sprite):
 		if not self.hit_timer.active:
 			self.direction *= -1
 			self.hit_timer.activate()
+   
+	def killed(self):
+		self.kill()
 
 	def update(self, dt):
 		self.hit_timer.update()
@@ -97,6 +101,9 @@ class Shell(pygame.sprite.Sprite):
 		self.shoot_timer = Timer(3000)
 		self.has_fired = False
 		self.create_pearl = create_pearl
+  
+
+		self.hit_timer = Timer(250)
 
 	def state_management(self):
 		player_pos, shell_pos = vector(self.player.hitbox_rect.center), vector(self.rect.center)
@@ -138,7 +145,7 @@ class Pearl(pygame.sprite.Sprite):
 		self.direction = direction
 		self.speed = speed
 		self.z = Z_LAYERS['main']
-		self.timers = {'lifetime': Timer(5000), 'reverse': Timer(250)}
+		self.timers = {'lifetime': Timer(5000), 'reverse': Timer(350)}
 		self.timers['lifetime'].activate()
 
 	def reverse(self):
@@ -151,5 +158,102 @@ class Pearl(pygame.sprite.Sprite):
 			timer.update()
 
 		self.rect.x += self.direction * self.speed * dt
+
 		if not self.timers['lifetime'].active:
 			self.kill()
+
+class PearlBoss(pygame.sprite.Sprite):
+	def __init__(self, pos, groups, surf, direction, speed):
+		self.pearl = True
+		super().__init__(groups)
+		self.image = surf
+		self.rect = self.image.get_frect(center = pos + vector(130 * direction[0], 130 * direction[1]))
+		self.direction = direction
+		self.speed = speed
+		self.z = Z_LAYERS['main']
+		self.timers = {'lifetime': Timer(4000), 'reverse': Timer(2000)}
+		self.timers['lifetime'].activate()
+
+	def reverse(self):
+		if not self.timers['reverse'].active:
+			self.direction = [-1 * component for component in self.direction]
+			self.timers['reverse'].activate()
+
+	def update(self, dt):
+		for timer in self.timers.values():
+			timer.update()
+
+		self.rect.x += self.direction[0] * self.speed * dt
+		self.rect.y += self.direction[1] * self.speed * dt
+		if not self.timers['lifetime'].active:
+			self.kill()
+
+class Boss(pygame.sprite.Sprite):
+	def __init__(self, pos, frames, groups, reverse, player, create_pearl_boss):
+		super().__init__(groups)
+
+		if reverse:
+			self.frames = {}
+			for key, surfs in frames.items():
+				self.frames[key] = [pygame.transform.flip(surf, True, False) for surf in surfs]
+			self.bullet_direction = -1
+		else:
+			self.frames = frames 
+			self.bullet_direction = 1
+
+		for key in self.frames:
+			self.frames[key] = [pygame.transform.scale(frame, (200, 100)) for frame in self.frames[key]]
+
+		self.frame_index = 0
+		self.state = 'idle'
+		self.image = self.frames[self.state][self.frame_index]
+		self.rect = self.image.get_frect(topleft = pos)
+		self.old_rect = self.rect.copy()
+		self.z = Z_LAYERS['main']
+		self.player = player
+		self.shoot_timer = Timer(800)
+		self.has_fired = False
+		self.create_pearl_boss = create_pearl_boss
+
+		self.health = 100
+
+		self.hit_timer = Timer(250)
+
+	def state_management(self):
+		player_pos, shell_pos = vector(self.player.hitbox_rect.center), vector(self.rect.center)
+		player_near = shell_pos.distance_to(player_pos) < 600
+		player_front = shell_pos.x < player_pos.x if self.bullet_direction > 0 else shell_pos.x > player_pos.x
+
+		if player_near and player_front and not self.shoot_timer.active:
+			self.state = 'fire'
+			self.frame_index = 0
+			self.has_fired = False
+			self.shoot_timer.activate()
+	 
+	def damage(self, amount):
+		self.health -= amount
+		if self.health <= 0:
+			self.killed()
+   
+	def killed(self):
+		self.kill()
+
+	def update(self, dt):
+		self.shoot_timer.update()
+		self.state_management()
+
+		# animation / attack 
+		self.frame_index += ANIMATION_SPEED * dt
+		if self.frame_index < len(self.frames[self.state]):
+			self.image = self.frames[self.state][int(self.frame_index)]
+
+			# fire 
+			if self.state == 'fire' and int(self.frame_index) == 3 and not self.has_fired:
+				self.create_pearl_boss(self.rect.center)
+				self.has_fired = True 
+
+		else:
+			self.frame_index = 0
+			if self.state == 'fire':
+				self.state = 'idle'
+				self.has_fired = False

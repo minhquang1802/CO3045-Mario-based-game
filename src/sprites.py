@@ -41,7 +41,8 @@ class Item(AnimatedSprite):
 		if self.item_type == 'skull':
 			self.data.coins += 50
 		if self.item_type == 'potion':
-			self.data.health += 1
+			if self.data.health < 5:
+				self.data.health += 1 
    
 class ParticleEffectSprite(AnimatedSprite):
 	def __init__(self, pos, frames, groups):

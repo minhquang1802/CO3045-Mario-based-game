@@ -2,12 +2,19 @@ from settings import *
 from sprites import Sprite, AnimatedSprite, MovingSprite, Spike, Item, ParticleEffectSprite
 from player import Player
 from groups import AllSprites
-from enemies import Tooth, Shell, Pearl
+from enemies import Tooth, Shell, Pearl, PearlBoss, Boss
+import math
+from random import uniform
 
 class Level:
-    def __init__(self, tmx_map, level_frames, data):
+    def __init__(self, tmx_map, level_frames, audio_files, data, pos, respawn, switch_stage, first = True):
         self.display_surface = pygame.display.get_surface()
         self.data = data
+        self.respawn = respawn
+        self.switch_stage = switch_stage
+        self.checkpoint_flag = pos
+        self.first = first
+        self.checkpoint_rect = None
         
         # level data 
         self.level_width = tmx_map.width * TILE_SIZE
@@ -18,6 +25,7 @@ class Level:
             bg_tile = level_frames['bg_tiles'][tmx_level_properties['bg']]
         else:
             bg_tile = None
+    
         
         #groups
         self.all_sprites = AllSprites(
@@ -31,16 +39,27 @@ class Level:
         self.semi_collision_sprites = pygame.sprite.Group()
         self.damage_sprites = pygame.sprite.Group()
         self.tooth_sprites = pygame.sprite.Group()
+        self.shell_sprites = pygame.sprite.Group()
         self.pearl_sprites = pygame.sprite.Group()
+        self.pearl_boss_sprites = pygame.sprite.Group()
         self.item_sprites = pygame.sprite.Group()
+        self.boss_sprites = pygame.sprite.Group()
         
-        self.setup(tmx_map, level_frames)
+        
+        self.setup(tmx_map, level_frames, audio_files)
 
 		# frames 
         self.pearl_surf = level_frames['pearl']
         self.particle_frames = level_frames['particle']
         
-    def setup(self, tmx_map, level_frames):
+        # audio
+        self.coin_sound = audio_files['coin']
+        self.coin_sound.set_volume(0.2)
+        self.damage_sound = audio_files['damage']
+        self.damage_sound.set_volume(0.4)
+        self.pearl_sound = audio_files['pearl']
+        
+    def setup(self, tmx_map, level_frames, audio_files):
         # tiles
         for layer in ['FG', 'Terrain', 'BG', 'Platforms']:
             for x, y, surf in tmx_map.get_layer_by_name(layer).tiles():
@@ -65,23 +84,60 @@ class Level:
         # objects
         for obj in tmx_map.get_layer_by_name('Objects'):
             if obj.name == 'player':
-                self.player = Player(
-                    pos = (obj.x, obj.y), 
-                    groups = self.all_sprites, 
-                    collision_sprites = self.collision_sprites, 
-                    semi_collision_sprites = self.semi_collision_sprites,
-                    frames = level_frames['player'], 
-                    data = self.data
-                )
+                if self.first:
+                    self.player = Player(
+                        pos = (obj.x, obj.y), 
+                        groups = self.all_sprites, 
+                        collision_sprites = self.collision_sprites, 
+                        semi_collision_sprites = self.semi_collision_sprites,
+                        frames = level_frames['player'], 
+                        data = self.data,
+                        attack_sound = audio_files['attack'],
+					    jump_sound = audio_files['jump']
+                    )
+                    print(self.player.pos)
+                else:
+                    self.player = Player(
+                        pos = self.checkpoint_flag, 
+                        groups = self.all_sprites, 
+                        collision_sprites = self.collision_sprites, 
+                        semi_collision_sprites = self.semi_collision_sprites,
+                        frames = level_frames['player'], 
+                        data = self.data,
+                        attack_sound = audio_files['attack'],
+					    jump_sound = audio_files['jump']
+                    )
+                # if self.first == True:
+                self.checkpoint_flag = (self.player.pos[0], self.player.pos[1])
             else:
                 if obj.name in ('barrel', 'crate'):
                     Sprite((obj.x, obj.y), obj.image, (self.all_sprites, self.collision_sprites))
                 else:
-                    if 'palm' not in obj.name:
-                        frames = level_frames[obj.name]
-                        AnimatedSprite((obj.x, obj.y), frames, self.all_sprites)
+                    # if 'palm' not in obj.name:
+                    #     frames = level_frames[obj.name]
+                    #     AnimatedSprite((obj.x, obj.y), frames, self.all_sprites)
+                    # frames 
+                    frames = level_frames[obj.name] if not 'palm' in obj.name else level_frames['palms'][obj.name]
+                    if obj.name == 'floor_spike' and obj.properties['inverted']:
+                        frames = [pygame.transform.flip(frame, False, True) for frame in frames]
+
+                    # groups 
+                    groups = [self.all_sprites]
+                    if obj.name in('palm_small', 'palm_large'): groups.append(self.semi_collision_sprites)
+                    if obj.name in ('saw', 'floor_spike'): groups.append(self.damage_sprites)
+
+                    # z index
+                    z = Z_LAYERS['main'] if not 'bg' in obj.name else Z_LAYERS['bg details']
+
+                    # animation speed
+                    animation_speed = ANIMATION_SPEED if not 'palm' in obj.name else ANIMATION_SPEED + uniform(-1,1)
+                    AnimatedSprite((obj.x, obj.y), frames, groups, z, animation_speed)
             if obj.name == 'flag':
                 self.level_finish_rect = pygame.FRect((obj.x, obj.y), (obj.width, obj.height))
+                
+            if obj.name == 'checkpoint_flag':
+                self.checkpoint_rect = pygame.FRect((obj.x, obj.y), (obj.width - 57, obj.height))
+                print(self.checkpoint_rect)
                     
         # moving objects
         for obj in tmx_map.get_layer_by_name('Moving Objects'):
@@ -138,10 +194,19 @@ class Level:
                 Shell(
 					pos = (obj.x, obj.y), 
 					frames = level_frames['shell'], 
-					groups = (self.all_sprites, self.collision_sprites), 
+					groups = (self.all_sprites, self.shell_sprites, self.collision_sprites), 
 					reverse = obj.properties['reverse'], 
 					player = self.player, 
 					create_pearl = self.create_pearl)
+            
+            if obj.name == 'boss':
+                Boss(
+					pos = (obj.x, obj.y), 
+					frames = level_frames['shell'], 
+					groups = (self.all_sprites, self.collision_sprites, self.boss_sprites), 
+					reverse = obj.properties['reverse'], 
+					player = self.player, 
+					create_pearl_boss = self.create_pearl_boss)
                 
         # items 
         for obj in tmx_map.get_layer_by_name('Items'):
@@ -162,12 +227,36 @@ class Level:
 
     def create_pearl(self, pos, direction):
         Pearl(pos, (self.all_sprites, self.damage_sprites, self.pearl_sprites), self.pearl_surf, direction, 150)
+        self.pearl_sound.play()
+        
+    def create_pearl_boss(self, pos):
+    # Generate a random angle in radians
+        player_pos = vector(self.player.hitbox_rect.center)
 
-    def create_pearl(self, pos, direction):
-        Pearl(pos, (self.all_sprites, self.damage_sprites, self.pearl_sprites), self.pearl_surf, direction, 150)
-        # self.pearl_sound.play()
+        # Convert the angle to a direction vector
+        direction = (player_pos - pos).normalize()
+
+        PearlBoss(pos, (self.all_sprites, self.damage_sprites, self.pearl_boss_sprites), self.pearl_surf, direction, 150)
+        self.pearl_sound.play()
         
     def pearl_collision(self):
+        for sprite in self.pearl_sprites:
+            collided_sprite = pygame.sprite.spritecollide(sprite, self.shell_sprites, True)
+            if collided_sprite:
+                self.damage_sound.play()
+                ParticleEffectSprite((collided_sprite[0].rect.center), self.particle_frames, self.all_sprites)
+                sprite.kill()
+                
+    
+        for sprite in self.pearl_boss_sprites:
+            collided_sprite = pygame.sprite.spritecollide(sprite, self.boss_sprites, False)
+            if collided_sprite:
+                self.damage_sound.play()
+                for bosssprite in self.boss_sprites:
+                    bosssprite.damage(10)
+                ParticleEffectSprite((collided_sprite[0].rect.center), self.particle_frames, self.all_sprites)
+                sprite.kill()
+        
         for sprite in self.collision_sprites:
             sprite = pygame.sprite.spritecollide(sprite, self.pearl_sprites, True)
             if sprite:
@@ -177,7 +266,7 @@ class Level:
         for sprite in self.damage_sprites:
             if sprite.rect.colliderect(self.player.hitbox_rect):
                 self.player.get_damage()
-                # self.damage_sound.play()
+                self.damage_sound.play()
                 if hasattr(sprite, 'pearl'):
                     sprite.kill()
                     ParticleEffectSprite((sprite.rect.center), self.particle_frames, self.all_sprites)
@@ -188,14 +277,38 @@ class Level:
                 if item_sprites:
                     item_sprites[0].activate()
                     ParticleEffectSprite((item_sprites[0].rect.center), self.particle_frames, self.all_sprites)
-                    # self.coin_sound.play()
+                    self.coin_sound.play()
                     
     def attack_collision(self):
-            for target in self.pearl_sprites.sprites() + self.tooth_sprites.sprites():
+        for group in [self.pearl_sprites, self.pearl_boss_sprites]:
+            for target in group.sprites():
                 facing_target = self.player.rect.centerx < target.rect.centerx and self.player.facing_right or \
                                 self.player.rect.centerx > target.rect.centerx and not self.player.facing_right
                 if target.rect.colliderect(self.player.rect) and self.player.attacking and facing_target:
                     target.reverse()
+            
+    def kill_enemies(self):
+        for target in self.tooth_sprites.sprites():
+            facing_target = self.player.rect.centerx < target.rect.centerx and self.player.facing_right or \
+                            self.player.rect.centerx > target.rect.centerx and not self.player.facing_right
+            if target.rect.colliderect(self.player.rect) and self.player.attacking and facing_target:
+                target.killed()
+                self.damage_sound.play()
+
+        # for group in [self.tooth_sprites, self.boss_sprites]:  # Add the boss's sprite group here
+        #     for target in group.sprites():
+        #         facing_target = self.player.rect.centerx < target.rect.centerx and self.player.facing_right or \
+        #                         self.player.rect.centerx > target.rect.centerx and not self.player.facing_right
+        #         if target.rect.colliderect(self.player.rect) and self.player.attacking and facing_target:
+        #             if isinstance(target, Boss):  # If the target is the boss
+        #                 target.damage(10)  # Damage the boss
+        #             else:
+        #                 target.killed()
+                    
+    def checkpoint(self):
+        if self.checkpoint_rect != None:
+            if self.player.hitbox_rect.colliderect(self.checkpoint_rect):
+                self.checkpoint_flag = (self.player.rect.x, self.player.rect.y)
     
     def check_constraint(self):
         # left right
@@ -206,13 +319,17 @@ class Level:
 
         # bottom border 
         if self.player.hitbox_rect.bottom > self.level_bottom:
-            # self.switch_stage('overworld', -1)
-            print('death')
-
+            self.respawn(self.checkpoint_flag)
+            self.data.health -= 1
+            
         # success 
         if self.player.hitbox_rect.colliderect(self.level_finish_rect):
-            # self.switch_stage('overworld', self.level_unlock)
-            print('success')
+            self.switch_stage('menu')
+    
+    # def input(self):
+    #     keys = pygame.key.get_pressed()
+    #     if keys[pygame.K_ESCAPE]:
+    #         self.switch_stage('menu')
     
     def run(self, dt):
         self.display_surface.fill('black')
@@ -222,5 +339,9 @@ class Level:
         self.hit_collision()
         self.item_collision()
         self.attack_collision()
+        self.kill_enemies()
+        self.checkpoint()
+        self.check_constraint()
+        # self.input()
         
         self.all_sprites.draw(self.player.hitbox_rect.center, dt)

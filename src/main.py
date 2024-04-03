@@ -5,6 +5,8 @@ from os.path import join
 from data import Data
 from ui import UI
 from debug import debug
+from menu import Menu
+from gameover import GameOver
 
 from support import *
 
@@ -18,12 +20,30 @@ class Game:
 
         self.ui = UI(self.font, self.ui_frames)
         self.data = Data(self.ui)
-        self.tmx_maps = {0: load_pygame(join('..', 'data', 'levels', 'omni.tmx'))}
-        self.current_stage = Level(self.tmx_maps[0], self.level_frames, self.data)
+        self.tmx_maps = {0: load_pygame(join('..', 'data', 'levels', '1.tmx'))}
+        # self.current_stage = Level(self.tmx_maps[0], self.level_frames, self.data, (0,0), self.respawn, self.switch_stage)
+        self.current_stage = Menu(self.menu_frames, self.switch_stage)
+        # self.current_stage = GameOver(self.menu_frames, self.switch_stage, self.font)
+        self.bg_music.play(-1)
+    
+    def respawn(self, pos):
+        self.current_stage = Level(self.tmx_maps[0], self.level_frames, self.audio_files, self.data, pos, self.respawn, self.switch_stage, False)
+        
+    def switch_stage(self, target):
+        if target == 'level':
+            self.current_stage = Level(self.tmx_maps[0], self.level_frames, self.audio_files, self.data, (0,0), self.respawn, self.switch_stage, True)
+        elif target == 'menu':
+            self.current_stage = Menu(self.menu_frames, self.switch_stage)
+        elif target == 'gameover':
+            self.current_stage = GameOver(self.menu_frames, self.switch_stage, self.font)
+        elif target == 'exit':
+            pygame.quit()
+            sys.exit()
         
     def import_assets(self):
         self.level_frames = {
             'flag': import_folder('..', 'graphics', 'level', 'flag'),
+            'checkpoint_flag': import_folder('..', 'graphics', 'level', 'flag'),
 			'saw': import_folder('..', 'graphics', 'enemies', 'saw', 'animation'),
 			'floor_spike': import_folder('..', 'graphics','enemies', 'floor_spikes'),
 			'palms': import_sub_folders('..', 'graphics', 'level', 'palms'),
@@ -51,11 +71,35 @@ class Game:
 			'cloud_large': import_image('..', 'graphics','level', 'clouds', 'large_cloud'),
         }
         
+        self.menu_frames = {
+            'new_game': import_image('..', 'graphics', 'menu', 'new_game'),
+			'options': import_image('..', 'graphics', 'menu', 'options'),
+            'exit': import_image('..', 'graphics', 'menu', 'exit'),
+            'background': import_image('..', 'graphics', 'menu', 'background'),
+        }
+        
         self.font = pygame.font.Font(join('..', 'graphics', 'ui', 'runescape_uf.ttf'), 40)
         self.ui_frames = {
 			'heart': import_folder('..', 'graphics', 'ui', 'heart'), 
 			'coin':import_image('..', 'graphics', 'ui', 'coin')
 		}
+        
+        self.audio_files = {
+			'coin': pygame.mixer.Sound(join('..', 'audio', 'coin.wav')),
+			'attack': pygame.mixer.Sound(join('..', 'audio', 'attack.wav')),
+			'jump': pygame.mixer.Sound(join('..', 'audio', 'jump.wav')), 
+			'damage': pygame.mixer.Sound(join('..', 'audio', 'damage.wav')),
+			'pearl': pygame.mixer.Sound(join('..', 'audio', 'pearl.wav')),
+		}
+        self.bg_music = pygame.mixer.Sound(join('..', 'audio', 'starlight_city.mp3'))
+        self.bg_music.set_volume(0.1)
+
+    def check_game_over(self):
+        if self.data.health <= 0:
+            self.switch_stage('gameover')
+            self.data.health = 5
+            # pygame.quit()
+            # sys.exit()
 
     def run(self):
         while True:
@@ -65,8 +109,10 @@ class Game:
                     pygame.quit()
                     sys.exit()
                     
+            self.check_game_over()
             self.current_stage.run(dt)
             self.ui.update(dt)     
+            
             pygame.display.update()
 
 if __name__ == '__main__':
